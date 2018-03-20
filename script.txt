@@ -1,0 +1,89 @@
+// cib:{"fetch":"https://rawgit.com/strepkov/model/master/model-brake-c.zip","system_includes":["model-brake-c"], "unzip_compiler":true}
+// cib:{"fetch":"https://rawgit.com/strepkov/model/master/armadillo.zip","system_includes":["armadillo"], "unzip_compiler":true}
+// cib:{"fetch":"https://rawgit.com/strepkov/model/master/lib.zip","system_includes":["lib"], "unzip_compiler":true}
+#ifndef arraysize
+#define arraysize(array) (sizeof(array)/sizeof(array[0]))
+#endif
+
+#include "brakesystem_brakeSystemCalculator.h"
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
+
+using namespace emscripten;
+
+brakesystem_brakeSystemCalculator *model = new brakesystem_brakeSystemCalculator();
+
+void init() {
+  model->init();
+}
+
+void execute() {
+  model->execute();
+}
+
+  val matrixToArray(mat matrix) {
+    val result = val::array();
+    uword rows = matrix.n_rows;
+    uword cols = matrix.n_cols;
+    for (int i = 0; i < rows; i++) {
+      val v = val::array();
+      result.set(i, v);
+      for (int j = 0; j < cols; j++) {
+        v.set(j, matrix(i, j));
+      }
+    }
+    return result;
+  }
+
+  void copyArrayInMatrix(mat &matrix, val array2d) {
+    for (int i = 0; i < array2d["length"].as<int>(); i++) {
+      for (int j = 0; j < ((array2d[i])["length"]).as<int>(); j++) {
+        matrix(i, j) = array2d[i][j].as<double>();
+      }
+    }
+  }
+
+//getters
+  val getDistance() {
+    return matrixToArray(model->distance);
+  }
+  val getHitsObstacle() {
+    return matrixToArray(model->hitsObstacle);
+  }
+  val getMaxVelocity() {
+    val result = val::array();
+    for (int i = 0; i < arraysize(model->maxVelocity); i++) {
+      result.set(i, model->maxVelocity[i]);
+    }
+    return result;
+  }
+
+//setters
+  void setBrakeAcceleration(val brakeAcceleration) {
+    for (int i = 0; i < brakeAcceleration["length"].as<int>(); i++) {
+  model->brakeAcceleration[i] = brakeAcceleration[i].as<double>();
+    }
+  }
+  void setVelocities(val velocities) {
+    copyArrayInMatrix(model->velocities, velocities);
+  }
+  void setReactionTime(val reactionTime) {
+  model->reactionTime = reactionTime.as<double>();
+  }
+  void setDistanceToObstacle(val distanceToObstacle) {
+  model->distanceToObstacle = distanceToObstacle.as<double>();
+  }
+
+//emscripten bindings
+EMSCRIPTEN_BINDINGS(my_module) {
+  function("init", &init);
+  function("execute", &execute);
+    function("getDistance", &getDistance);
+    function("getHitsObstacle", &getHitsObstacle);
+    function("getMaxVelocity", &getMaxVelocity);
+    function("setBrakeAcceleration", &setBrakeAcceleration);
+    function("setVelocities", &setVelocities);
+    function("setReactionTime", &setReactionTime);
+    function("setDistanceToObstacle", &setDistanceToObstacle);
+}
+
